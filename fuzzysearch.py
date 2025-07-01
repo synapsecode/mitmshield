@@ -3,34 +3,36 @@ from pathlib import Path
 import os
 from mitmproxy import ctx
 
-def fuzzy_search_in_file(file_path, target_snippet, min_score=60):
-    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-        full_code = f.read()
+from diff import fuzzydiff_in_file
 
-    target_snippet = target_snippet.strip()
-    best_score = 0
-    best_match = ""
-    best_index = -1
+# def fuzzy_search_in_file(file_path, target_snippet, min_score=60):
+#     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+#         full_code = f.read()
 
-    code_lines = full_code.splitlines()
-    snippet_lines = target_snippet.splitlines()
-    snippet_len = len(snippet_lines)
+#     target_snippet = target_snippet.strip()
+#     best_score = 0
+#     best_match = ""
+#     best_index = -1
 
-    for i in range(len(code_lines) - snippet_len + 1):
-        window = "\n".join(code_lines[i:i + snippet_len])
-        score = fuzz.ratio(window.strip(), target_snippet)
-        if score > best_score:
-            best_score = score
-            best_match = window
-            best_index = i
+#     code_lines = full_code.splitlines()
+#     snippet_lines = target_snippet.splitlines()
+#     snippet_len = len(snippet_lines)
 
-    if best_score >= min_score:
-        ctx.log.info(f"\n✅ Match found in file: {file_path}")
-        ctx.log.info(f"📌 Match (score: {best_score}) starting at line {best_index + 1}:\n")
-        ctx.log.info(best_match)
-        return True  # Signal to stop further search
+#     for i in range(len(code_lines) - snippet_len + 1):
+#         window = "\n".join(code_lines[i:i + snippet_len])
+#         score = fuzz.ratio(window.strip(), target_snippet)
+#         if score > best_score:
+#             best_score = score
+#             best_match = window
+#             best_index = i
 
-    return False  # No good match in this file
+#     if best_score >= min_score:
+#         ctx.log.info(f"\n✅ Match found in file: {file_path}")
+#         ctx.log.info(f"📌 Match (score: {best_score}) starting at line {best_index + 1}:\n")
+#         ctx.log.info(best_match)
+#         return True  # Signal to stop further search
+
+#     return False  # No good match in this file
 
 def global_fuzzy_search(target_snippet, min_score=60):
     ctx.log.info("GFUZ")
@@ -41,8 +43,9 @@ def global_fuzzy_search(target_snippet, min_score=60):
     for file_path in folder.rglob("*.py"):
         if('fuzzysearch.py' in str(file_path) or 'venv' in str(file_path)):
             continue
-        found = fuzzy_search_in_file(file_path, target_snippet, min_score)
+        found, best_score, best_snippet = fuzzydiff_in_file(file_path, target_snippet, min_score)
         if found:
+            ctx.log.info(f"Best Match: {best_score} {best_snippet} {file_path}")
             return True # Early return on first match
 
     ctx.log.error("❌ No matching code snippet found in any file.")

@@ -13,11 +13,6 @@ import os
 executor = ThreadPoolExecutor(max_workers=4)
 
 ALLOWED_IMG_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
-BLOCK_CONDITIONS = [
-    lambda url: "chatgpt.com" in url and "conversation" in url,
-    lambda url: "x.com" in url and "createtweet" in url,
-    lambda url: "stackoverflow.com" in url and "submit" in url,
-]
 
 class BlockProprietaryRequests:
     def __init__(self):
@@ -25,10 +20,11 @@ class BlockProprietaryRequests:
 
     def request(self, flow: http.HTTPFlow) -> None:
         url = flow.request.url.lower()
+        method = flow.request.method
         content_type = flow.request.headers.get("Content-Type", "").lower()
         if self.is_image_request(url, content_type):
             self.handle_image_request(flow)
-        elif any(cond(url) for cond in BLOCK_CONDITIONS):
+        elif method.lower() in ['post', 'put']:
             self.handle_block_condition(flow)
 
     def is_image_request(self, url: str, content_type: str) -> bool:
