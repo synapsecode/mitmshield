@@ -17,8 +17,6 @@ def start_mitm_proxy(script_path="./proxy.py"):
     try:
         process = subprocess.Popen(
             ["mitmdump", "-s", script_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
         )
         print("✅ mitmdump started successfully.")
         return process

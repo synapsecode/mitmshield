@@ -1,6 +1,7 @@
 from rapidfuzz import fuzz
 from pathlib import Path
 import os
+from mitmproxy import ctx
 
 def fuzzy_search_in_file(file_path, target_snippet, min_score=60):
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -24,15 +25,15 @@ def fuzzy_search_in_file(file_path, target_snippet, min_score=60):
             best_index = i
 
     if best_score >= min_score:
-        print(f"\n✅ Match found in file: {file_path}")
-        print(f"📌 Match (score: {best_score}) starting at line {best_index + 1}:\n")
-        print(best_match)
+        ctx.log.info(f"\n✅ Match found in file: {file_path}")
+        ctx.log.info(f"📌 Match (score: {best_score}) starting at line {best_index + 1}:\n")
+        ctx.log.info(best_match)
         return True  # Signal to stop further search
 
     return False  # No good match in this file
 
 def global_fuzzy_search(target_snippet, min_score=60):
-    print("GFUZ")
+    ctx.log.info("GFUZ")
     # folder_path = os.getcwd()
     folder_path = os.getcwd()
     folder = Path(folder_path)
@@ -44,7 +45,7 @@ def global_fuzzy_search(target_snippet, min_score=60):
         if found:
             return True # Early return on first match
 
-    print("❌ No matching code snippet found in any file.")
+    ctx.log.error("❌ No matching code snippet found in any file.")
     return False
 
 # 🧪 Example usage
