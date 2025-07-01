@@ -1,6 +1,5 @@
 import os
 import time
-import subprocess
 import asyncio
 
 async def get_code_in_image(image_path: str):
