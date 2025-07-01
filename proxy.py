@@ -1,88 +1,91 @@
 from concurrent.futures import ThreadPoolExecutor
-from handler import handle
-from mitmproxy import ctx
-import asyncio
-from mitmproxy import http
+from mitmproxy import http, ctx
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
+
+from handler import handle
 from utils import get_code_in_image, remove_image, run_async_in_thread, save_image_for_ocr
 from code_checker import check_if_company_code
 
-executor = ThreadPoolExecutor(max_workers=2)
+import asyncio
+import os
+
+executor = ThreadPoolExecutor(max_workers=4)
+
+ALLOWED_IMG_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
+BLOCK_CONDITIONS = [
+    lambda url: "chatgpt.com" in url and "conversation" in url,
+    lambda url: "x.com" in url and "createtweet" in url,
+    lambda url: "stackoverflow.com" in url and "submit" in url,
+]
 
 class BlockProprietaryRequests:
     def __init__(self):
-        self.tasks = set()
+        self.loop = asyncio.get_event_loop()
 
     def request(self, flow: http.HTTPFlow) -> None:
         url = flow.request.url.lower()
         content_type = flow.request.headers.get("Content-Type", "").lower()
+        if self.is_image_request(url, content_type):
+            self.handle_image_request(flow)
+        elif any(cond(url) for cond in BLOCK_CONDITIONS):
+            self.handle_block_condition(flow)
 
-        ALLOWED_IMG_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"]
+    def is_image_request(self, url: str, content_type: str) -> bool:
+        return content_type.startswith("image/") or any(url.endswith(ext) for ext in ALLOWED_IMG_EXTENSIONS)
 
-        # ----------- HANDLE IMAGE UPLOAD ----------
-        if content_type.startswith("image/") or any(ext in url for ext in ALLOWED_IMG_EXTENSIONS):
-            fp = save_image_for_ocr(flow)
-            if(fp == None):
-                self.block_request(flow, "SAVE_FAILED")
-                remove_image(fp)
-                return True
-            
-            print("GETTING OCR")
-            future = executor.submit(run_async_in_thread, get_code_in_image(fp))
-            try:
-                ocr_text = future.result(timeout=10)  # Wait up to 10s
-                print("OCR RESULT:", ocr_text)
-                if check_if_company_code(ocr_text):
-                    self.block_request(flow, "COMPANY_CODE_FOUND_IN_IMAGE")
-                    remove_image(fp)
-                    return
-                return True #EXIT
-            except Exception as e:
-                print("OCR ERROR:", e)
-                self.block_request(flow, "OCR_EXCEPTION")
-                remove_image(fp)
-                return
-         # ----------- HANDLE IMAGE UPLOAD ----------
+    def handle_image_request(self, flow: http.HTTPFlow):
+        fp = save_image_for_ocr(flow)
+        if not fp or not os.path.exists(fp):
+            self.block_request(flow, "SAVE_FAILED")
+            return
 
-        conditions = [
-            "chatgpt.com" in url and 'conversation' in url,
-            'x.com' in url and 'createtweet' in url,
-            'stackoverflow.com' in url and 'submit' in url,
-        ]
-        if(any(conditions)):
-            blocked = handle(flow)
-            if blocked:
-                remove_image(fp)
-                self.block_request(flow, "COMPANY_CODE_FOUND")
+        ctx.log.info("Running OCR for image...")
+        future = executor.submit(run_async_in_thread, get_code_in_image(fp))
+        try:
+            ocr_text = future.result(timeout=10)
+            ctx.log.info(f"OCR RESULT: {ocr_text}")
+
+            if check_if_company_code(ocr_text):
+                self.block_request(flow, "COMPANY_CODE_FOUND_IN_IMAGE")
+            # else allow through
+
+        except Exception as e:
+            ctx.log.warn(f"OCR ERROR: {e}")
+            self.block_request(flow, "OCR_EXCEPTION")
+
+        finally:
+            remove_image(fp)
+
+    def handle_block_condition(self, flow: http.HTTPFlow):
+        blocked = handle(flow)
+        if blocked:
+            self.block_request(flow, "COMPANY_CODE_FOUND")
 
     def block_request(self, flow: http.HTTPFlow, reason: str):
-        print(f"[{reason}] Blocking request to {flow.request.url}")
+        ctx.log.warn(f"[{reason}] Blocking request to {flow.request.url}")
         flow.response = http.Response.make(
             403,
-            b"Request blocked: " + reason.encode(),
+            f"Request blocked: {reason}".encode(),
             {"Content-Type": "text/plain"}
         )
         try:
             flow.resume()
-        except:
+        except Exception:
             pass
 
-# This line initializes the class instance when mitmproxy runs.
-addons = [
-    BlockProprietaryRequests()
-]
+# ---------- Programmatic Startup (if run as main) ----------
+addons = [BlockProprietaryRequests()]
 
 async def main():
     print("Starting mitmproxy programmatically...")
     options = Options(listen_host='0.0.0.0', listen_port=8080, http2=True)
     master = DumpMaster(options, with_termlog=True, with_dumper=False)
     master.addons.add(BlockProprietaryRequests())
-    await master.run()
-
-if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        await master.run()
     except KeyboardInterrupt:
         print("Proxy interrupted.")
 
+if __name__ == "__main__":
+    asyncio.run(main())
