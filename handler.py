@@ -13,19 +13,9 @@ def handle(flow):
     if(len(request_text) == 0):
         return False
     
-    if "mail.google.com" in flow.request.pretty_host and flow.request.method == "POST":
-        ctx.log.info('MAILLLLLLLLL')
+    # TODO: Special Case for e-mails
     
     if(check_if_company_code(request_text)):
         return True
 
-    # request_data = json.loads(request_text)
-    # if "chatgpt.com" in url and 'conversation' in url:
-    #     if('messages' in request_data):
-    #         for m in request_data['messages']:
-    #             parts =  m.get('content', dict()).get('parts', [])
-    #             for part in parts:
-    #                 ctx.log.info(f"PART {part}")
-    #                 if( check_if_company_code(part) ):
-    #                     return True
     return False

@@ -55,8 +55,4 @@ def fuzzydiff_in_file(file_path, input_text, threshold=51):
 
     match, best_score, best_snippet = fuzzy_match_snippet_parts(needle, haystack, threshold=threshold)
 
-    ctx.log.info(f"Best similarity score: {best_score}")
-    if best_snippet:
-        ctx.log.info(f"Best matching snippet:\n{best_snippet}")
-
-    return match, best_score, best_snippet
+    return (match), best_score, best_snippet
