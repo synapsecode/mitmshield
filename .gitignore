@@ -1,0 +1,68 @@
+# Python virtual environments
+**/venv/
+**/env/
+**/.venv/
+**/.env/
+
+# Python cache
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Byte-compiled / optimized / DLL files
+*.so
+*.dll
+*.dylib
+*.pyd
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Logs and local configs
+*.log
+.env
+.env.*
+
+# VSCode and other editor folders
+.vscode/
+.idea/
+
+# macOS and Linux trash/system files
+.DS_Store
+.Trashes
+Thumbs.db
+
+# pip cache
+pip-wheel-metadata/
+pip-log.txt
+
+# MyPy / Pyright / Pyre / Pylint
+.mypy_cache/
+.pyre/
+.pyright/
+
+# pytest
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage*
+.tox/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Wheel files
+*.whl
+
+# SQLite DBs or local app data
+*.sqlite3
+*.db
+
+# pycache or cache folders you mentioned
+pucache/
+.cache/

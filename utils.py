@@ -45,3 +45,12 @@ def save_image_for_ocr(flow):
         print(f"[!] Failed to save image: {e}")
         return None
 
+def remove_image(filepath):
+    os.remove(filepath)
+
+def run_async_in_thread(coro):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    result = loop.run_until_complete(coro)
+    loop.close()
+    return result
